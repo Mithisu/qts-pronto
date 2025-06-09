@@ -2,19 +2,32 @@
 include('config.php');
 
 if (isset($_POST['submit'])) {
-    $email = $_POST['email'];
-    $nome = $_POST['nome'];
+    $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
+    $nome = htmlspecialchars(trim($_POST['nome']));
     $senha = $_POST['senha'];
 
     // Validação de email
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         echo "O email fornecido não é válido. Por favor, insira um email correto.";
-        exit(); // Interrompe a execução do script se o email for inválido
+        exit();
     }
 
-    // Inserção no banco de dados
-    $result = mysqli_query($conn, "INSERT INTO usuario(email, nome, senha) VALUES('$email', '$nome', '$senha')");
-    header("Location: login.php");
+    $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("INSERT INTO usuario (email, nome, senha) VALUES (?, ?, ?)");
+    if ($stmt === false) {
+        die("Erro na preparação da query: " . $conn->error);
+    }
+
+    $stmt->bind_param("sss", $email, $nome, $senhaHash);
+    if ($stmt->execute()) {
+        header("Location: login.php");
+        exit();
+    } else {
+        echo "Erro ao inserir no banco de dados: " . $stmt->error;
+    }
+
+    $stmt->close();
+    $conn->close();
 }
 ?>
 

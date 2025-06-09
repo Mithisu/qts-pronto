@@ -1,36 +1,38 @@
 <?php
 include('config.php');
 
-if(!isset($_SESSION)){
-   session_start();
- }
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $email = $_POST['email'];
-    $senha = $_POST['senha'];
-
-    // Prepara a consulta para buscar o usuário
-    $sql = "SELECT * FROM usuario WHERE email = '$email'";
-    $result = $conn->query($sql);
-    $row = $result->fetch_assoc();
-    
-
-    if ($result->num_rows > 0) { //Verifica se o e-mail existe no BD
-
-      if($senha == $row['senha']){// Verifica se a senha do formulário é igual a senha do BD
-        $_SESSION['usuario_id'] = $row['id'];
-        header("Location: exercicios.php");
-        
-      }else{
-        echo 'senha errada';
-      }
-      
-    }else{
-      echo 'Não há email cadastrado';
-    }
+if (!isset($_SESSION)) {
+    session_start();
 }
 
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
+    $senha = $_POST['senha'];
 
+    // Prepara a consulta com prepared statement
+    $stmt = $conn->prepare("SELECT id, senha FROM usuario WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+
+        // Verifica a senha com password_verify
+        if (password_verify($senha, $row['senha'])) {
+            $_SESSION['usuario_id'] = $row['id'];
+            header("Location: result.php");
+            exit();
+        } else {
+            echo 'Senha incorreta.';
+        }
+    } else {
+        echo 'Email não encontrado.';
+    }
+
+    $stmt->close();
+    $conn->close();
+}
 ?>
 
 <!DOCTYPE html>
